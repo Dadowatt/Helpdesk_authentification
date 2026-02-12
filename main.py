@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 import os
 import mysql.connector
+import re
+import bcrypt
 
 load_dotenv() #chargement du fichier .env
 
@@ -19,19 +21,63 @@ try:
     database=database,
     port= port
     )
-    cursor = connexion.cursor(dictionary=True)
+    curseur = connexion.cursor(dictionary=True)
     print("Connexion réussie à la base de données MySQL")
 except mysql.connector.Error as e:
     print(f"Erreur de connexion : {e}")
 
-def inscription():
-    print("inscription")
+def inscription(curseur, connexion):
+    try:
+        while True:
+            try:
+                prenom = input("Entrez votre prénom : ").strip().capitalize()
+                if prenom.replace(" ", "").isalpha():
+                    break
+                print("veuillez entrer un prénom valide")
+            except ValueError:
+                print("Le prénom doit contenir uniquement des lettres")
+        while True:
+            try:
+                nom = input("Entrez votre nom : ").strip().capitalize()
+                if nom.isalpha():
+                    break
+                print("veuillez entrer un nom valide")
+            except ValueError:
+                print("Le nom doit contenir uniquement des lettres")
 
-def connexion():
+        while True:
+            email = input("Email : ").strip()
+            if re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                break
+            print("Format d'email invalide.")
+
+        while True:
+            mot_de_passe = input("Mot de passe : ").strip()
+            if len(mot_de_passe) < 6:
+                print("Le Mot de passe doit contenir au minimum 6 caractères")
+                continue
+            break
+        query_check = "SELECT * FROM users WHERE email = %s"
+        curseur.execute(query_check, (email,))
+        users = curseur.fetchall()
+        if users:
+            print("Cet email est déjà utilisé")
+            return
+        mot_de_passe_bytes = mot_de_passe.encode('utf-8')
+        hash_password = bcrypt.hashpw(mot_de_passe_bytes, bcrypt.gensalt())
+        query_insert = "INSERT INTO users(prenom, nom, email, password) VALUES (%s, %s, %s, %s)"
+        curseur.execute(query_insert, (prenom, nom, email, hash_password.decode('utf-8')))
+        connexion.commit()
+        print("Compte créé avec succès!")
+
+    except mysql.connector.Error as e:
+        print(f"Erreur lors de l'inscription : {e}")
+
+def login():
     print("connexion")
 
 #menu pricipal
-def menu_principal():
+def menu_principal(curseur, connexion):
     while True:
         print("\n=== Helpdesk Menu ===")
         print("1. Se connecter")
@@ -40,12 +86,12 @@ def menu_principal():
 
         choix = input("Veuillez choisir une option : ")
         if choix == "1":
-            inscription()
+            login()
         elif choix == "2":
-            connexion()
+            inscription(curseur, connexion)
         elif choix == "3":
             print("Au revoir!")
             exit()
         else:
             print("Option invalide. Veuillez réessayer.")
-menu_principal()
+menu_principal(curseur, connexion)
