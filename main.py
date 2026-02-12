@@ -26,6 +26,7 @@ try:
 except mysql.connector.Error as e:
     print(f"Erreur de connexion : {e}")
 
+#gestion de l'inscription
 def inscription(curseur, connexion):
     try:
         while True:
@@ -73,11 +74,35 @@ def inscription(curseur, connexion):
     except mysql.connector.Error as e:
         print(f"Erreur lors de l'inscription : {e}")
 
-def login():
-    print("connexion")
+#gestion de la connexion
+def login(curseur, connexion):
+    try:
+        email = input ("Email : ").strip()
+        mot_de_passe = input("Mot de passe : ").strip()
+        query = "SELECT * FROM users WHERE email = %s"
+        curseur.execute(query, (email,))
+        user = curseur.fetchone()
+        if not user:
+            print("Email inconnue.")
+            return None
+        
+        mot_de_passe_bytes = mot_de_passe.encode('utf-8')
+        hash_bytes = user['password'].encode('utf-8')
+
+        if bcrypt.checkpw(mot_de_passe_bytes, hash_bytes):
+            print(f"Connexion réussi! Bienvenue {user['prenom']} {user['nom']}")
+            return user
+        else:
+            print("Mot de passe incorrect.")
+            return None
+    except mysql.connector.Error as e:
+        print(f"Erreur lors de la connexion : {e}")
+
+
 
 #menu pricipal
 def menu_principal(curseur, connexion):
+
     while True:
         print("\n=== Helpdesk Menu ===")
         print("1. Se connecter")
@@ -86,7 +111,7 @@ def menu_principal(curseur, connexion):
 
         choix = input("Veuillez choisir une option : ")
         if choix == "1":
-            login()
+            login(curseur, connexion)
         elif choix == "2":
             inscription(curseur, connexion)
         elif choix == "3":
