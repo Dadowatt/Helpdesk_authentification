@@ -24,19 +24,25 @@ try:
 except mysql.connector.Error as e:
     print(f"Erreur de connexion : {e}")
 
+def inscription():
+    print("inscription")
+
+def connexion():
+    print("connexion")
+
 #menu pricipal
 def menu_principal():
     while True:
-        print("Menu Principal")
+        print("\n=== Helpdesk Menu ===")
         print("1. Se connecter")
         print("2. S'inscrire")
         print("3. Quitter")
 
         choix = input("Veuillez choisir une option : ")
         if choix == "1":
-            print("se connecter")
+            inscription()
         elif choix == "2":
-            print("s'inscrire")
+            connexion()
         elif choix == "3":
             print("Au revoir!")
             exit()
