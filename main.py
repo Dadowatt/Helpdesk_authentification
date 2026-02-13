@@ -6,7 +6,7 @@ import bcrypt
 
 load_dotenv() #chargement du fichier .env
 
-#recupération des variables d'environnement
+""" recupération des variables d'environnement """
 host = os.getenv("DB_HOST")
 user = os.getenv("DB_USER")
 password = os.getenv("DB_PASSWORD")
@@ -27,8 +27,9 @@ except mysql.connector.Error as e:
     print(f"Erreur de connexion : {e}")
 
 
-#fonction générique pour demander les infos utilisateur
 def saisir_utilisateur():
+    """fonction générique pour demander les infos utilisateur,  
+        Collecte et valide prénom, nom, email et mot de passe."""
     while True:
         prenom = input("Entrez votre prénom : ").strip().capitalize()
         if prenom.replace(" ", "").isalpha():
