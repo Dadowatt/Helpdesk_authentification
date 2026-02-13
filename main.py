@@ -26,60 +26,84 @@ try:
 except mysql.connector.Error as e:
     print(f"Erreur de connexion : {e}")
 
+
+#fonction générique pour demander les infos utilisateur
+def saisir_utilisateur():
+    while True:
+        prenom = input("Entrez votre prénom : ").strip().capitalize()
+        if prenom.replace(" ", "").isalpha():
+            break
+        print("Veuillez entrer un prénom valide")
+
+    while True:
+        nom = input("Entrez votre nom : ").strip().capitalize()
+        if nom.replace(" ", "").isalpha():
+            break
+        print("Veuillez entrer un nom valide")
+
+    while True:
+        email = input("Entrez votre email : ").strip()
+        if re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            break
+        print("Format d'email invalide")
+
+    while True:
+        mot_de_passe = input("Mot de passe : ").strip()
+        if len(mot_de_passe) >= 6:
+            break
+        print("Le mot de passe doit contenir au minimum 6 caractères")
+
+    return prenom, nom, email, mot_de_passe
+
+
 #gestion de l'inscription
 def inscription(curseur, connexion):
     try:
-        while True:
-            try:
-                prenom = input("Entrez votre prénom : ").strip().capitalize()
-                if prenom.replace(" ", "").isalpha():
-                    break
-                print("veuillez entrer un prénom valide")
-            except ValueError:
-                print("Le prénom doit contenir uniquement des lettres")
-        while True:
-            try:
-                nom = input("Entrez votre nom : ").strip().capitalize()
-                if nom.isalpha():
-                    break
-                print("veuillez entrer un nom valide")
-            except ValueError:
-                print("Le nom doit contenir uniquement des lettres")
+        prenom, nom, email, mot_de_passe = saisir_utilisateur()
 
-        while True:
-            email = input("Entrez votre email : ").strip()
-            #contrôle de l'email
-            if re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                break
-            print("Format d'email invalide")
-
-        while True:
-            mot_de_passe = input("Mot de passe : ").strip()
-            #contrôle du mot de passe
-            if len(mot_de_passe) < 6:
-                print("Le Mot de passe doit contenir au minimum 6 caractères")
-                continue
-            break
-
-        query_check = "SELECT * FROM users WHERE email = %s"
-        curseur.execute(query_check, (email,))
-        users = curseur.fetchall()
-
-        if users:
+        # Vérification si email existe
+        curseur.execute("SELECT * FROM users WHERE email = %s", (email,))
+        if curseur.fetchone():
             print("Cet email est déjà utilisé")
             return
-        
-        #hachage du mot de passe
-        mot_de_passe_bytes = mot_de_passe.encode('utf-8')
-        hash_password = bcrypt.hashpw(mot_de_passe_bytes, bcrypt.gensalt())
 
-        query_insert = "INSERT INTO users(prenom, nom, email, password, role) VALUES (%s, %s, %s, %s, %s)"
-        curseur.execute(query_insert, (prenom, nom, email, hash_password.decode('utf-8'), "user"))
+        # Hachage du mot de passe
+        hash_password = bcrypt.hashpw(mot_de_passe.encode('utf-8'), bcrypt.gensalt())
+
+        # Insertion utilisateur
+        curseur.execute(
+            "INSERT INTO users(prenom, nom, email, password, role) VALUES (%s, %s, %s, %s, %s)",
+            (prenom, nom, email, hash_password.decode('utf-8'), "user")
+        )
         connexion.commit()
         print("Compte créé avec succès!")
 
     except mysql.connector.Error as e:
         print(f"Erreur lors de l'inscription : {e}")
+
+#création d'un admin
+def creer_admin(curseur, connexion, current_user):
+    if current_user['role'] != 'admin':
+        print("Accès refusé.")
+        return
+
+    print("\n=== CRÉATION D'UN ADMINISTRATEUR ===")
+    prenom, nom, email, mot_de_passe = saisir_utilisateur()
+
+    curseur.execute("SELECT * FROM users WHERE email = %s", (email,))
+    if curseur.fetchone():
+        print("Cet email est déjà utilisé")
+        return
+
+    hash_password = bcrypt.hashpw(mot_de_passe.encode('utf-8'), bcrypt.gensalt())
+
+    curseur.execute(
+        "INSERT INTO users(prenom, nom, email, password, role) VALUES (%s, %s, %s, %s, %s)",
+        (prenom, nom, email, hash_password.decode('utf-8'), "admin")
+    )
+    connexion.commit()
+    print("Nouvel administrateur créé avec succès !")
+
 
 #gestion de la connexion
 def login(curseur, connexion):
@@ -108,60 +132,7 @@ def login(curseur, connexion):
     except mysql.connector.Error as e:
         print(f"Erreur lors de la connexion : {e}")
 
-#création d'un admin
-def creer_admin(curseur, connexion, current_user):
-    print("\n=== CRÉATION D'UN ADMINISTRATEUR ===")
-
-    # Vérification que l'utilisateur actuel est admin
-    if current_user['role'] != 'admin':
-        print("Accès refusé.")
-        return
-
-    while True:
-        prenom = input("Prénom : ").strip().capitalize()
-        if prenom.replace(" ", "").isalpha():
-            break
-        print("Veuillez entrer un prénom valide (lettres uniquement)")
-
-    while True:
-        nom = input("Nom : ").strip().capitalize()
-        if nom.replace(" ", "").isalpha():
-            break
-        print("Veuillez entrer un nom valide (lettres uniquement)")
-
-    while True:
-        email = input("Email : ").strip()
-        if re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            query_check = "SELECT * FROM users WHERE email = %s"
-            curseur.execute(query_check, (email,))
-            if curseur.fetchone():
-                print("Cet email est déjà utilisé")
-            else:
-                break
-        else:
-            print("Format d'email invalide")
-
-    while True:
-        mot_de_passe = input("Mot de passe : ").strip()
-        if len(mot_de_passe) < 6:
-            print("Le mot de passe doit contenir au minimum 6 caractères")
-        else:
-            break
-
-    # Hachage du mot de passe
-    mot_de_passe_bytes = mot_de_passe.encode('utf-8')
-    hash_password = bcrypt.hashpw(mot_de_passe_bytes, bcrypt.gensalt())
-
-    # Insertion dans la base avec rôle admin
-    query_insert = """
-        INSERT INTO users (prenom, nom, email, password, role)
-        VALUES (%s, %s, %s, %s, %s)
-    """
-    curseur.execute(query_insert, (prenom, nom, email, hash_password.decode('utf-8'), "admin"))
-    connexion.commit()
-    print("Nouvel administrateur créé avec succès !")
-
-#création d'un ticket
+#fonctionalité pour la création d'un ticket
 def creer_ticket(curseur, connexion, current_user):
     print("\n=== CRÉER UN TICKET ===")
     if current_user is None:
@@ -207,7 +178,7 @@ def creer_ticket(curseur, connexion, current_user):
     except mysql.connector.Error as e:
         print(f"Erreur lors de la création du ticket : {e}")
 
-#voir les tickets
+#fonctionalité pour voir les tickets
 def voir_tickets(curseur, current_user):
     if current_user is None:
         print("Vous devez être connecté pour voir vos tickets")
@@ -243,7 +214,7 @@ def voir_tickets(curseur, current_user):
         print("\n=== TICKETS ===")
         for t in tickets:
             if current_user['role'] == 'admin':
-                print(f"\nID: {t['id']}, Titre: {t['titre']}, Auteur: {t['auteur']}")
+                print(f"\nID: {t['id']}, Titre: {t['titre']}, Auteur: {t['prenom']} {t['auteur']}")
             else:
                 print(f"\nID: {t['id']}, Titre: {t['titre']}\n"
                       f"Description: {t['description']}\n"
@@ -252,7 +223,8 @@ def voir_tickets(curseur, current_user):
     except mysql.connector.Error as e:
         print(f"Erreur lors de la récupération des tickets : {e}")
 
-#modification du statut d'un ticket
+
+#fonctionalité pour la modification du statut d'un ticket
 def modifier_statut_ticket(curseur, connexion, current_user):
     if current_user['role'] != 'admin':
         print("Accès refusé.")
@@ -276,7 +248,7 @@ def modifier_statut_ticket(curseur, connexion, current_user):
 
     for ticket in tickets:
         print(f"ID: {ticket['id']} | Titre: {ticket['titre']} | "
-              f"Statut: {ticket['statut']} | Auteur: {ticket['auteur']}")
+              f"Statut: {ticket['statut']} | Auteur: {ticket['prenom']} {ticket['auteur']}")
 
     # Choisir le ticket
     try:
